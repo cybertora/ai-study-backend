@@ -17,37 +17,50 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({
-  origin: [
-    'https://ai-study-frontend-kz7o34tyj-cybertoras-projects.vercel.app/',  // ← скопируй точно из браузера (твой фронт-домен)
-    'https://ai-study-frontend-nine.vercel.app/',  // если есть основной/alias
-    'http://localhost:3000',                 // локал
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  optionsSuccessStatus: 204
-}));
-
-// Явный хендлер для preflight — это спасает на Render/Vercel/Netlify
+// === 1. ЯВНЫЙ ОБРАБОТЧИК OPTIONS (самый первый — критически важно для preflight) ===
 app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  const origin = req.headers.origin;
+
+  // Логируем для отладки (потом можно убрать)
+  console.log(`[OPTIONS] Request from origin: ${origin || 'no origin'}`);
+
+  res.header('Access-Control-Allow-Origin', origin || '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
   res.header('Access-Control-Allow-Credentials', 'true');
-  res.sendStatus(204);  // 204 No Content — стандарт для preflight
+  res.header('Access-Control-Max-Age', '86400'); // кэшируем preflight на 24 часа
+
+  return res.sendStatus(204);
 });
 
-// Security middleware
-app.use(helmet());
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true,
-  })
-);
+// === 2. CORS middleware (после OPTIONS, чтобы не конфликтовать) ===
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'https://prefil-study-frontend-aazlliaXj-cybertoras-projects.vercel.app',
+      'https://ai-study-frontend-kz7o34tyj-cybertoras-projects.vercel.app',
+      'https://ai-study-frontend-nine.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:3001' // на всякий случай
+    ];
 
-// Body parsing middleware
+    // Для dev и тестовых доменов Vercel разрешаем всё (потом можно сузить)
+    if (!origin || allowedOrigins.some(o => origin.startsWith(o)) || origin.includes('vercel.app')) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked for origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: true,
+  optionsSuccessStatus: 204,
+  maxAge: 86400
+}));
+
+// === 3. Остальные middleware (после CORS) ===
+app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -76,7 +89,7 @@ app.use((req, res) => {
   });
 });
 
-// Global error handler (must be last)
+// Global error handler (самый последний)
 app.use(errorHandler);
 
 export default app;
