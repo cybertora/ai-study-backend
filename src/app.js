@@ -18,19 +18,21 @@ dotenv.config();
 const app = express();
 
 app.use(cors({
-  origin: function (origin, callback) {
-    const allowed = [
-      'http://localhost:3000',
-      'https://https://ai-study-frontend-nine.vercel.app/'
-    ];
-    if (!origin || allowed.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: [
+    'https://prefil-study-frontend-aazlliaXj-cybertoras-projects.vercel.app',  // ← твой точный Vercel URL
+    'https://ai-study-frontend.vercel.app',  // если есть alias
+    'http://localhost:3000',
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
+  optionsSuccessStatus: 204  // важно для старых браузеров
 }));
+
+// Явная обработка preflight для ВСЕХ путей (самое важное!)
+app.options('*', (req, res) => {
+  res.sendStatus(204);  // или res.status(204).end();
+});
 
 // Security middleware
 app.use(helmet());
