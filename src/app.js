@@ -19,19 +19,23 @@ const app = express();
 
 app.use(cors({
   origin: [
-    'https://prefil-study-frontend-aazlliaXj-cybertoras-projects.vercel.app',  // ← твой точный Vercel URL
-    'https://ai-study-frontend.vercel.app',  // если есть alias
-    'http://localhost:3000',
+    'https://ai-study-frontend-kz7o34tyj-cybertoras-projects.vercel.app/',  // ← скопируй точно из браузера (твой фронт-домен)
+    'https://ai-study-frontend-nine.vercel.app/',  // если есть основной/alias
+    'http://localhost:3000',                 // локал
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-  optionsSuccessStatus: 204  // важно для старых браузеров
+  optionsSuccessStatus: 204
 }));
 
-// Явная обработка preflight для ВСЕХ путей (самое важное!)
+// Явный хендлер для preflight — это спасает на Render/Vercel/Netlify
 app.options('*', (req, res) => {
-  res.sendStatus(204);  // или res.status(204).end();
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(204);  // 204 No Content — стандарт для preflight
 });
 
 // Security middleware
