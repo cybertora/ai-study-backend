@@ -17,6 +17,21 @@ dotenv.config();
 
 const app = express();
 
+app.use(cors({
+  origin: function (origin, callback) {
+    const allowed = [
+      'http://localhost:3000',
+      'https://https://ai-study-frontend-nine.vercel.app/'
+    ];
+    if (!origin || allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
+
 // Security middleware
 app.use(helmet());
 app.use(
