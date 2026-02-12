@@ -1,11 +1,9 @@
-// file: backend/src/app.js
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { errorHandler } from './middleware/errorHandler.js';
 
-// Routes
 import authRoutes from './routes/auth.js';
 import summaryRoutes from './routes/summary.js';
 import testRoutes from './routes/test.js';
@@ -17,11 +15,9 @@ dotenv.config();
 
 const app = express();
 
-// === 1. ЯВНЫЙ ОБРАБОТЧИК OPTIONS (самый первый — критически важно для preflight) ===
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
 
-  // Логируем для отладки (потом можно убрать)
   console.log(`[OPTIONS] Request from origin: ${origin || 'no origin'}`);
 
   res.header('Access-Control-Allow-Origin', origin || '*');
@@ -33,7 +29,6 @@ app.options('*', (req, res) => {
   return res.sendStatus(204);
 });
 
-// === 2. CORS middleware (после OPTIONS, чтобы не конфликтовать) ===
 app.use(cors({
   origin: (origin, callback) => {
     const allowedOrigins = [
@@ -44,7 +39,6 @@ app.use(cors({
       'http://localhost:3001' // на всякий случай
     ];
 
-    // Для dev и тестовых доменов Vercel разрешаем всё (потом можно сузить)
     if (!origin || allowedOrigins.some(o => origin.startsWith(o)) || origin.includes('vercel.app')) {
       callback(null, true);
     } else {
@@ -59,12 +53,10 @@ app.use(cors({
   maxAge: 86400
 }));
 
-// === 3. Остальные middleware (после CORS) ===
 app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health check
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
@@ -73,7 +65,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/summary', summaryRoutes);
 app.use('/api/test', testRoutes);
@@ -81,7 +72,6 @@ app.use('/api/code', codeRoutes);
 app.use('/api/cheatsheet', cheatsheetRoutes);
 app.use('/api/exam', examRoutes);
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -89,7 +79,6 @@ app.use((req, res) => {
   });
 });
 
-// Global error handler (самый последний)
 app.use(errorHandler);
 
 export default app;

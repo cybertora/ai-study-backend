@@ -1,4 +1,3 @@
-// file: backend/src/controllers/examController.js
 import Exam from '../models/Exam.js';
 import Test from '../models/Test.js';
 import { randomBytes } from 'crypto';
@@ -19,14 +18,12 @@ export const startExam = async (req, res, next) => {
       });
     }
 
-    // Проверяем активную сессию
     let existingExam = await Exam.findOne({
       test: testId,
       user: req.user._id,
       status: 'in_progress',
     });
 
-    // Если есть активная сессия и пользователь хочет начать заново (forceNew=true)
     if (existingExam && forceNew) {
       existingExam.status = 'expired';
       existingExam.endTime = new Date();
@@ -37,7 +34,6 @@ export const startExam = async (req, res, next) => {
       existingExam = null; // теперь можно создавать новую
     }
 
-    // Если всё ещё есть активная — возвращаем ошибку
     if (existingExam) {
       return res.status(400).json({
         success: false,
@@ -46,7 +42,6 @@ export const startExam = async (req, res, next) => {
       });
     }
 
-    // Создаём новую сессию
     const exam = await Exam.create({
       test: testId,
       user: req.user._id,
@@ -70,7 +65,6 @@ export const startExam = async (req, res, next) => {
   }
 };
 
-// Принудительное завершение сессии (для фронта)
 export const forceFinishExam = async (req, res, next) => {
   try {
     const { id: examId } = req.params;

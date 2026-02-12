@@ -1,4 +1,3 @@
-// file: backend/src/routes/cheatsheet.js
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { createCheatSheet } from '../controllers/cheatSheetController.js';

@@ -1,4 +1,3 @@
-// file: backend/src/routes/code.js
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { checkCodeQuality } from '../controllers/codeCheckController.js';

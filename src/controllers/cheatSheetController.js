@@ -1,11 +1,9 @@
-// file: backend/src/controllers/cheatSheetController.js
 import { generateCheatSheet } from '../services/openaiService.js';
 
 export const createCheatSheet = async (req, res, next) => {
   try {
     const { text, maxLength, format } = req.body;
 
-    // Generate cheat sheet using OpenAI
     const cheatSheet = await generateCheatSheet(
       text,
       maxLength || 500,

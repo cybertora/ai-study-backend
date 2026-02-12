@@ -1,4 +1,3 @@
-// file: backend/src/services/socketService.js
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import Exam from '../models/Exam.js';
@@ -6,7 +5,7 @@ import Test from '../models/Test.js';
 import { evaluateAnswer } from './openaiService.js';
 
 let io;
-const activeTimers = new Map(); // examId → intervalId
+const activeTimers = new Map();
 
 export const initializeSocket = (httpServer) => {
   io = new Server(httpServer, {

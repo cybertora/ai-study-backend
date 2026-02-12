@@ -1,4 +1,3 @@
-// file: backend/src/controllers/testController.js
 import Test from '../models/Test.js';
 import { generateTest } from '../services/openaiService.js';
 
@@ -6,14 +5,12 @@ export const createTest = async (req, res, next) => {
   try {
     const { topic, numQuestions, difficulty, timeLimit } = req.body;
 
-    // Generate test questions using OpenAI
     const questions = await generateTest(
       topic,
       numQuestions || 10,
       difficulty || 'medium'
     );
 
-    // Save to database
     const test = await Test.create({
       title: `Test: ${topic}`,
       topic,

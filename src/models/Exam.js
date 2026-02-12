@@ -1,4 +1,3 @@
-// file: backend/src/models/Exam.js
 import mongoose from 'mongoose';
 
 const answerSchema = new mongoose.Schema({

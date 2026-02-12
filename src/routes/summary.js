@@ -1,4 +1,3 @@
-// file: backend/src/routes/summary.js
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import {
@@ -13,7 +12,6 @@ import { summarySchema } from '../utils/validation.js';
 
 const router = express.Router();
 
-// Rate limiter for AI endpoints
 const aiLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60000,
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 15,
@@ -25,7 +23,6 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// All routes require authentication
 router.use(authenticateToken);
 
 router.post('/', aiLimiter, validate(summarySchema), createSummary);

@@ -1,4 +1,3 @@
-// file: backend/src/models/Lecture.js
 import mongoose from 'mongoose';
 
 const lectureSchema = new mongoose.Schema(
@@ -36,7 +35,6 @@ const lectureSchema = new mongoose.Schema(
   }
 );
 
-// Index for faster queries
 lectureSchema.index({ user: 1, createdAt: -1 });
 lectureSchema.index({ title: 'text', subject: 'text' });
 

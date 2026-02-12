@@ -1,4 +1,3 @@
-// file: backend/src/services/openaiService.js
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 
@@ -10,9 +9,7 @@ const openai = new OpenAI({
 
 const DEFAULT_MODEL = 'gpt-4o-mini';
 
-/**
- * Generate lecture summary
- */
+
 export const generateSummary = async (lectureText, title = 'Untitled Lecture') => {
   try {
     const prompt = `You are an expert academic assistant. Create a comprehensive, structured summary of the following lecture.
@@ -54,9 +51,7 @@ Format in clear markdown with headers and bullet points.`;
   }
 };
 
-/**
- * Generate test questions
- */
+
 export const generateTest = async (topic, numQuestions = 10, difficulty = 'medium') => {
   try {
     const difficultyInstructions = {
@@ -122,9 +117,7 @@ Return ONLY valid JSON in this exact format:
   }
 };
 
-/**
- * Check code for errors and improvements
- */
+
 export const checkCode = async (code, language, taskDescription = '') => {
   try {
     const prompt = `You are an expert code reviewer. Analyze the following ${language} code${
@@ -176,9 +169,7 @@ Return ONLY valid JSON in this exact format:
   }
 };
 
-/**
- * Generate cheat sheet
- */
+
 export const generateCheatSheet = async (text, maxLength = 500, format = 'bullet') => {
   try {
     const formatInstructions = {
@@ -224,9 +215,7 @@ Create a cheat sheet that:
   }
 };
 
-/**
- * Evaluate exam answer in real-time
- */
+
 export const evaluateAnswer = async (question, correctAnswer, studentAnswer) => {
   try {
     const prompt = `Evaluate this exam answer.

@@ -1,4 +1,3 @@
-// file: backend/src/controllers/authController.js
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 
@@ -12,7 +11,6 @@ export const register = async (req, res, next) => {
   try {
     const { email, password, role, firstName, lastName } = req.body;
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
@@ -21,7 +19,6 @@ export const register = async (req, res, next) => {
       });
     }
 
-    // Create new user
     const user = await User.create({
       email,
       password,
@@ -30,7 +27,6 @@ export const register = async (req, res, next) => {
       lastName,
     });
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.status(201).json({
@@ -56,7 +52,6 @@ export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // Find user with password field
     const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
@@ -66,7 +61,6 @@ export const login = async (req, res, next) => {
       });
     }
 
-    // Check password
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
@@ -76,7 +70,6 @@ export const login = async (req, res, next) => {
       });
     }
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.status(200).json({

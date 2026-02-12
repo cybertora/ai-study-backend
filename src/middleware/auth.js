@@ -1,10 +1,8 @@
-// file: backend/src/middleware/auth.js
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 export const authenticateToken = async (req, res, next) => {
   try {
-    // Get token from header
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.startsWith('Bearer ')
       ? authHeader.substring(7)
@@ -17,10 +15,8 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Get user from database
     const user = await User.findById(decoded.userId).select('-password');
 
     if (!user) {
@@ -30,7 +26,6 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Attach user to request
     req.user = user;
     next();
   } catch (error) {
@@ -53,7 +48,6 @@ export const authenticateToken = async (req, res, next) => {
   }
 };
 
-// Role-based authorization
 export const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {

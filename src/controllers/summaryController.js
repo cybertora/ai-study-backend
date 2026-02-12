@@ -1,4 +1,3 @@
-// file: backend/src/controllers/summaryController.js
 import Lecture from '../models/Lecture.js';
 import { generateSummary } from '../services/openaiService.js';
 
@@ -6,16 +5,13 @@ export const createSummary = async (req, res, next) => {
   try {
     const { lectureText, title, subject } = req.body;
 
-    // Generate summary using OpenAI
     const summary = await generateSummary(
       lectureText,
       title || 'Untitled Lecture'
     );
 
-    // Calculate word count
     const wordCount = lectureText.split(/\s+/).length;
 
-    // Save to database
     const lecture = await Lecture.create({
       title: title || 'Untitled Lecture',
       content: lectureText,

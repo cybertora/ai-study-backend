@@ -1,7 +1,5 @@
-// file: backend/src/utils/validation.js
 import Joi from 'joi';
 
-// Auth validation schemas
 export const registerSchema = Joi.object({
   email: Joi.string().email().required().messages({
     'string.email': 'Please provide a valid email address',
@@ -21,7 +19,6 @@ export const loginSchema = Joi.object({
   password: Joi.string().required(),
 });
 
-// Summary validation
 export const summarySchema = Joi.object({
   lectureText: Joi.string().min(100).max(50000).required().messages({
     'string.min': 'Lecture text must be at least 100 characters',
@@ -32,7 +29,6 @@ export const summarySchema = Joi.object({
   subject: Joi.string().trim().max(100).optional(),
 });
 
-// Test generation validation
 export const generateTestSchema = Joi.object({
   topic: Joi.string().trim().min(3).max(200).required().messages({
     'string.min': 'Topic must be at least 3 characters',
@@ -43,7 +39,6 @@ export const generateTestSchema = Joi.object({
   timeLimit: Joi.number().integer().min(5).max(180).default(30),
 });
 
-// Code check validation
 export const codeCheckSchema = Joi.object({
   code: Joi.string().min(10).max(10000).required().messages({
     'string.min': 'Code must be at least 10 characters',
@@ -56,7 +51,6 @@ export const codeCheckSchema = Joi.object({
   taskDescription: Joi.string().max(1000).optional(),
 });
 
-// Cheat sheet validation
 export const cheatSheetSchema = Joi.object({
   text: Joi.string().min(100).max(20000).required().messages({
     'string.min': 'Text must be at least 100 characters',
@@ -67,7 +61,6 @@ export const cheatSheetSchema = Joi.object({
   format: Joi.string().valid('bullet', 'table', 'compact').default('bullet'),
 });
 
-// Exam validation
 export const startExamSchema = Joi.object({
   testId: Joi.string().required().messages({
     'any.required': 'Test ID is required',
