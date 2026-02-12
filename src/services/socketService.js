@@ -6,191 +6,203 @@ import Test from '../models/Test.js';
 import { evaluateAnswer } from './openaiService.js';
 
 let io;
+const activeTimers = new Map(); // examId → intervalId
 
 export const initializeSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'https://*.vercel.app'],
+      methods: ['GET', 'POST'],
       credentials: true,
     },
   });
 
-  // Socket authentication middleware
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
-
     if (!token) {
-      return next(new Error('Authentication error: No token provided'));
+      return next(new Error('Authentication error: No token'));
     }
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.userId = decoded.userId;
       next();
-    } catch (error) {
+    } catch (err) {
       next(new Error('Authentication error: Invalid token'));
     }
   });
 
   io.on('connection', (socket) => {
-    console.log(`✅ Socket connected: ${socket.id} (User: ${socket.userId})`);
+    console.log(`Socket connected: ${socket.id} | User: ${socket.userId}`);
 
-    // Join exam room
-    socket.on('join-exam', async (data) => {
+    socket.on('join-exam', async ({ examId }) => {
       try {
-        const { examId } = data;
+        if (!examId) throw new Error('examId required');
 
         const exam = await Exam.findById(examId).populate('test');
-
         if (!exam) {
-          socket.emit('error', { message: 'Exam not found' });
-          return;
+          return socket.emit('error', { message: 'Exam not found' });
         }
 
         if (exam.user.toString() !== socket.userId) {
-          socket.emit('error', { message: 'Unauthorized access to exam' });
-          return;
+          return socket.emit('error', { message: 'Unauthorized' });
         }
 
         if (exam.status !== 'in_progress') {
-          socket.emit('error', { message: 'Exam is not active' });
-          return;
+          return socket.emit('error', { message: 'Exam is not active' });
         }
 
-        const roomId = exam.socketRoomId || examId;
+        const roomId = exam.socketRoomId || exam._id.toString();
         socket.join(roomId);
 
-        // Calculate remaining time
-        const timeLimit = exam.test.timeLimit * 60 * 1000; // Convert to ms
-        const elapsed = Date.now() - exam.startTime.getTime();
-        const remaining = Math.max(0, timeLimit - elapsed);
+        const timeLimitMs = exam.test.timeLimit * 60 * 1000;
+        const elapsedMs = Date.now() - exam.startTime.getTime();
+        const remainingSeconds = Math.max(0, Math.floor((timeLimitMs - elapsedMs) / 1000));
+
+        const safeTest = {
+          _id: exam.test._id,
+          title: exam.test.title,
+          topic: exam.test.topic,
+          difficulty: exam.test.difficulty,
+          timeLimit: exam.test.timeLimit,
+          questions: exam.test.questions.map(q => ({
+            question: q.question,
+            options: q.options,
+          })),
+        };
 
         socket.emit('exam-joined', {
-          examId: exam._id,
-          test: exam.test,
-          startTime: exam.startTime,
-          remainingTime: remaining,
+          test: safeTest,
+          remainingTime: remainingSeconds,
         });
 
-        // Start timer
-        const timerInterval = setInterval(() => {
-          const elapsed = Date.now() - exam.startTime.getTime();
-          const remaining = Math.max(0, timeLimit - elapsed);
+        if (!activeTimers.has(examId)) {
+          const interval = setInterval(async () => {
+            try {
+              const now = Date.now();
+              const elapsed = now - exam.startTime.getTime();
+              const remainingMs = timeLimitMs - elapsed;
+              const remainingSec = Math.max(0, Math.floor(remainingMs / 1000));
 
-          io.to(roomId).emit('time-update', { remainingTime: remaining });
+              io.to(roomId).emit('time-update', { remainingTime: remainingSec });
 
-          if (remaining === 0) {
-            clearInterval(timerInterval);
-            io.to(roomId).emit('exam-expired');
-            finishExam(examId);
-          }
-        }, 1000);
+              if (remainingSec <= 0) {
+                clearInterval(interval);
+                activeTimers.delete(examId);
+                io.to(roomId).emit('exam-expired');
+                await finishExam(examId);
+              }
+            } catch (err) {
+              console.error('Timer error:', err);
+            }
+          }, 1000);
 
-        socket.on('disconnect', () => {
-          clearInterval(timerInterval);
-        });
-      } catch (error) {
-        console.error('join-exam error:', error);
-        socket.emit('error', { message: 'Failed to join exam' });
+          activeTimers.set(examId, interval);
+        }
+      } catch (err) {
+        console.error('join-exam error:', err);
+        socket.emit('error', { message: err.message || 'Failed to join exam' });
       }
     });
 
-    // Submit answer with real-time feedback
-    socket.on('submit-answer', async (data) => {
+    socket.on('submit-answer', async ({ examId, questionIndex, answer }) => {
       try {
-        const { examId, questionIndex, answer } = data;
+        if (typeof questionIndex !== 'number' || !examId || !answer) {
+          throw new Error('Invalid data');
+        }
 
         const exam = await Exam.findById(examId).populate('test');
-
         if (!exam || exam.user.toString() !== socket.userId) {
-          socket.emit('error', { message: 'Invalid exam' });
-          return;
+          return socket.emit('error', { message: 'Invalid exam or unauthorized' });
         }
 
         const question = exam.test.questions[questionIndex];
         if (!question) {
-          socket.emit('error', { message: 'Invalid question index' });
-          return;
+          return socket.emit('error', { message: 'Question not found' });
         }
 
-        // Evaluate answer using AI
         const evaluation = await evaluateAnswer(
           question.question,
           question.correctAnswer,
           answer
         );
 
-        // Save answer
         exam.answers.push({
           questionIndex,
           studentAnswer: answer,
           isCorrect: evaluation.isCorrect,
           feedback: evaluation.feedback,
+          timestamp: new Date(),
         });
 
         await exam.save();
 
-        // Send feedback
         socket.emit('answer-feedback', {
           questionIndex,
           isCorrect: evaluation.isCorrect,
           feedback: evaluation.feedback,
-          correctAnswer: question.correctAnswer,
         });
-      } catch (error) {
-        console.error('submit-answer error:', error);
-        socket.emit('error', { message: 'Failed to submit answer' });
+      } catch (err) {
+        console.error('submit-answer error:', err);
+        socket.emit('error', { message: 'Failed to process answer' });
       }
     });
 
-    // Finish exam manually
-    socket.on('finish-exam', async (data) => {
+    socket.on('finish-exam', async ({ examId }) => {
       try {
-        const { examId } = data;
         await finishExam(examId, socket.userId);
-        socket.emit('exam-finished', { message: 'Exam completed successfully' });
-      } catch (error) {
-        console.error('finish-exam error:', error);
-        socket.emit('error', { message: 'Failed to finish exam' });
+        // Результаты придут через событие 'exam-finished'
+      } catch (err) {
+        console.error('finish-exam error:', err);
+        socket.emit('error', { message: err.message || 'Failed to finish' });
       }
     });
 
     socket.on('disconnect', () => {
-      console.log(`❌ Socket disconnected: ${socket.id}`);
+      console.log(`Socket disconnected: ${socket.id}`);
     });
   });
 
   return io;
 };
 
-// Helper function to finish exam
-const finishExam = async (examId, userId = null) => {
-  const exam = await Exam.findById(examId);
+const finishExam = async (examId, requestingUserId = null) => {
+  try {
+    const exam = await Exam.findById(examId).populate('test');
+    if (!exam || exam.status !== 'in_progress') return;
 
-  if (!exam || exam.status !== 'in_progress') {
-    return;
+    if (requestingUserId && exam.user.toString() !== requestingUserId) {
+      throw new Error('Unauthorized');
+    }
+
+    const totalQuestions = exam.test ? exam.test.questions.length : 0;
+    const correctAnswers = exam.answers.filter(a => a.isCorrect).length;
+    const score = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+
+    exam.status = 'completed';
+    exam.endTime = new Date();
+    exam.score = score;
+    exam.timeSpent = Math.floor((exam.endTime - exam.startTime) / 1000);
+
+    await exam.save();
+
+    const roomId = exam.socketRoomId || exam._id.toString();
+
+    io.to(roomId).emit('exam-finished', {
+      examId: exam._id.toString(),
+      score,
+      totalQuestions,
+      correctAnswers,
+      timeSpent: exam.timeSpent,
+      status: exam.status
+    });
+  } catch (err) {
+    console.error('finishExam error:', err);
   }
-
-  if (userId && exam.user.toString() !== userId) {
-    throw new Error('Unauthorized');
-  }
-
-  const totalQuestions = exam.answers.length;
-  const correctAnswers = exam.answers.filter((a) => a.isCorrect).length;
-  const score = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-
-  exam.status = 'completed';
-  exam.endTime = new Date();
-  exam.score = score;
-  exam.timeSpent = Math.floor((exam.endTime - exam.startTime) / 1000);
-
-  await exam.save();
 };
 
 export const getIO = () => {
-  if (!io) {
-    throw new Error('Socket.io not initialized');
-  }
+  if (!io) throw new Error('Socket.io not initialized');
   return io;
 };
 
